@@ -3,7 +3,16 @@ import re
 import sys
 import time
 import smtplib
+import logging
 from datetime import datetime
+
+# Logging setup to stdout
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(message)s",
+    stream=sys.stdout
+)
+logger = logging.getLogger("mailing")
 
 # Configuration
 MAILING_LIST = "picolisp@software-lab.de"
@@ -168,14 +177,14 @@ def send_smtp_message(recipients, raw_message, smtp_host=SMTP_HOST, smtp_port=SM
     try:
         smtp = smtplib.SMTP_SSL(smtp_host, smtp_port)
     except Exception:
-        sys.stderr.write("!! Can't connect to SMTP server\n")
+        logger.error("!! Can't connect to SMTP server")
         return False
 
     try:
         smtp.helo(mailing_domain)
         smtp.login(smtp_user, smtp_pw)
     except Exception:
-        sys.stderr.write("!! Can't HELO\n")
+        logger.error("!! Can't HELO")
         try:
             smtp.quit()
         except Exception:
@@ -186,9 +195,9 @@ def send_smtp_message(recipients, raw_message, smtp_host=SMTP_HOST, smtp_port=SM
         refused = smtp.sendmail(mailing_list, recipients, raw_message)
         if refused:
             for recipient in refused:
-                sys.stderr.write(f"{recipient} can't mail\n")
+                logger.error(f"{recipient} can't mail")
     except Exception as e:
-        sys.stderr.write(f"!! Can't mail: {e}\n")
+        logger.error(f"!! Can't mail: {e}")
         try:
             smtp.quit()
         except Exception:
@@ -218,7 +227,7 @@ def process_spool(spool_file=SPOOL_FILE, mailings_file=MAILINGS_FILE,
         valid_mbox, messages = parse_mbox_stream(f)
 
     if not valid_mbox:
-        sys.stderr.write("!! Bad mbox file\n")
+        logger.error("!! Bad mbox file")
         return
 
     for msg_data in messages:
@@ -232,10 +241,10 @@ def process_spool(spool_file=SPOOL_FILE, mailings_file=MAILINGS_FILE,
         timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
         if not is_member and not is_subscribe:
-            sys.stderr.write(f"** {timestamp} {from_env} discarded\n")
+            logger.info(f"** {timestamp} {from_env} discarded")
             continue
 
-        sys.stderr.write(f"** {timestamp} {from_env} accepted\n")
+        logger.info(f"** {timestamp} {from_env} accepted")
 
         if is_subscribe:
             if from_env not in mailings:
@@ -276,7 +285,7 @@ def main_loop():
         try:
             process_spool()
         except Exception as e:
-            sys.stderr.write(f"!! Error: {e}\n")
+            logger.error(f"!! Error: {e}")
         time.sleep(240)
 
 

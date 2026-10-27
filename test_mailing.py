@@ -2,6 +2,7 @@ import os
 import tempfile
 import io
 import unittest
+import logging
 import mailing
 
 
@@ -97,21 +98,16 @@ class TestMailing(unittest.TestCase):
             sent_calls.append(kwargs)
             return True
 
-        stderr_capture = io.StringIO()
-        original_stderr = mailing.sys.stderr
-        try:
-            mailing.sys.stderr = stderr_capture
+        with self.assertLogs(mailing.logger, level="INFO") as log:
             mailing.process_spool(
                 spool_file=self.spool_file,
                 mailings_file=self.mailings_file,
                 mailing_list="picolisp@software-lab.de",
                 smtp_sender=mock_smtp_sender
             )
-        finally:
-            mailing.sys.stderr = original_stderr
 
         self.assertEqual(len(sent_calls), 0)
-        self.assertIn("eve@example.com discarded", stderr_capture.getvalue())
+        self.assertTrue(any("eve@example.com discarded" in msg for msg in log.output))
         self.assertEqual(os.path.getsize(self.spool_file), 0)
 
     def test_process_spool_subscribe_and_unsubscribe(self):
