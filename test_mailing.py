@@ -2,6 +2,7 @@ import os
 import tempfile
 import io
 import unittest
+from unittest.mock import MagicMock, patch
 import logging
 import mailing
 
@@ -54,31 +55,31 @@ class TestMailing(unittest.TestCase):
 
     def test_format_outgoing_message(self):
         msg_data = {
-            'from_env': "user@domain.com",
+            'from_env': "user@example.com",
             'headers': {
-                'from': "Alice User <user@domain.com>",
+                'from': "Alice User <user@example.com>",
                 'subject': "Hello All",
-                'message-id': "<msg123@domain.com>"
+                'message-id': "<msg123@example.com>"
             },
             'body_lines': ["Line 1\n", "Line 2\n"]
         }
-        formatted_list = mailing.format_outgoing_message(msg_data, mailing_list="picolisp@software-lab.de", reply_to_list=True)
+        formatted_list = mailing.format_outgoing_message(msg_data, mailing_list="picolisp@example.com", reply_to_list=True)
 
-        self.assertIn('From: "Alice User via picolisp@software-lab.de" <picolisp@software-lab.de>\r\n', formatted_list)
-        self.assertIn("X-Original-From: Alice User <user@domain.com>\r\n", formatted_list)
-        self.assertIn("Sender: Alice User <user@domain.com>\r\n", formatted_list)
-        self.assertIn("Reply-To: picolisp@software-lab.de\r\n", formatted_list)
-        self.assertIn("To: picolisp@software-lab.de\r\n", formatted_list)
+        self.assertIn('From: "Alice User via picolisp@example.com" <picolisp@example.com>\r\n', formatted_list)
+        self.assertIn("X-Original-From: Alice User <user@example.com>\r\n", formatted_list)
+        self.assertIn("Sender: Alice User <user@example.com>\r\n", formatted_list)
+        self.assertIn("Reply-To: picolisp@example.com\r\n", formatted_list)
+        self.assertIn("To: picolisp@example.com\r\n", formatted_list)
         self.assertIn("Subject: Hello All\r\n", formatted_list)
-        self.assertIn("List-Subscribe: <mailto:picolisp@software-lab.de?subject=Subscribe>\r\n", formatted_list)
-        self.assertIn("List-Unsubscribe: <mailto:picolisp@software-lab.de?subject=Unsubscribe>\r\n", formatted_list)
-        self.assertIn("Message-ID: <msg123@domain.com>\r\n", formatted_list)
+        self.assertIn("List-Subscribe: <mailto:picolisp@example.com?subject=Subscribe>\r\n", formatted_list)
+        self.assertIn("List-Unsubscribe: <mailto:picolisp@example.com?subject=Unsubscribe>\r\n", formatted_list)
+        self.assertIn("Message-ID: <msg123@example.com>\r\n", formatted_list)
         self.assertIn("Line 1\r\nLine 2\r\n", formatted_list)
         self.assertNotIn("UNSUBSCRIBE:", formatted_list)
         self.assertNotIn("Fridays for Functions", formatted_list)
 
-        formatted_sender = mailing.format_outgoing_message(msg_data, mailing_list="picolisp@software-lab.de", reply_to_list=False)
-        self.assertIn("Reply-To: Alice User <user@domain.com>\r\n", formatted_sender)
+        formatted_sender = mailing.format_outgoing_message(msg_data, mailing_list="picolisp@example.com", reply_to_list=False)
+        self.assertIn("Reply-To: Alice User <user@example.com>\r\n", formatted_sender)
 
     def test_gecos_and_lhs_from_header(self):
         # Case 1: Sender with GECOS display name
@@ -87,8 +88,8 @@ class TestMailing(unittest.TestCase):
             'headers': {'from': "Bob Smith <bob@example.com>", 'subject': "Hi"},
             'body_lines': ["Test\n"]
         }
-        res_gecos = mailing.format_outgoing_message(msg_data_gecos, mailing_list="picolisp@software-lab.de")
-        self.assertIn('From: "Bob Smith via picolisp@software-lab.de" <picolisp@software-lab.de>\r\n', res_gecos)
+        res_gecos = mailing.format_outgoing_message(msg_data_gecos, mailing_list="picolisp@example.com")
+        self.assertIn('From: "Bob Smith via picolisp@example.com" <picolisp@example.com>\r\n', res_gecos)
         self.assertIn('X-Original-From: Bob Smith <bob@example.com>\r\n', res_gecos)
 
         # Case 2: Sender without GECOS display name (using LHS of email)
@@ -97,15 +98,15 @@ class TestMailing(unittest.TestCase):
             'headers': {'from': "charlie@example.com", 'subject': "Hi"},
             'body_lines': ["Test\n"]
         }
-        res_no_gecos = mailing.format_outgoing_message(msg_data_no_gecos, mailing_list="picolisp@software-lab.de")
-        self.assertIn('From: "charlie via picolisp@software-lab.de" <picolisp@software-lab.de>\r\n', res_no_gecos)
+        res_no_gecos = mailing.format_outgoing_message(msg_data_no_gecos, mailing_list="picolisp@example.com")
+        self.assertIn('From: "charlie via picolisp@example.com" <picolisp@example.com>\r\n', res_no_gecos)
         self.assertIn('X-Original-From: charlie@example.com\r\n', res_no_gecos)
 
     def test_multipart_mime_and_html_preservation(self):
         multipart_mbox = (
             "From alice@example.com Mon Oct 26 12:00:00 2026\n"
             "From: Alice <alice@example.com>\n"
-            "To: picolisp@software-lab.de\n"
+            "To: picolisp@example.com\n"
             "Subject: HTML and Plaintext\n"
             "MIME-Version: 1.0\n"
             "Content-Type: multipart/alternative; boundary=\"boundary_test_123\"\n"
@@ -125,9 +126,9 @@ class TestMailing(unittest.TestCase):
         self.assertTrue(valid)
         self.assertEqual(len(msgs), 1)
 
-        formatted = mailing.format_outgoing_message(msgs[0], mailing_list="picolisp@software-lab.de")
+        formatted = mailing.format_outgoing_message(msgs[0], mailing_list="picolisp@example.com")
 
-        self.assertIn('From: "Alice via picolisp@software-lab.de" <picolisp@software-lab.de>\r\n', formatted)
+        self.assertIn('From: "Alice via picolisp@example.com" <picolisp@example.com>\r\n', formatted)
         self.assertIn("X-Original-From: Alice <alice@example.com>\r\n", formatted)
         self.assertIn('Content-Type: multipart/alternative; boundary="boundary_test_123"\r\n', formatted)
         self.assertIn("--boundary_test_123\r\n", formatted)
@@ -160,7 +161,7 @@ class TestMailing(unittest.TestCase):
             mailing.process_spool(
                 spool_file=self.spool_file,
                 mailings_file=self.mailings_file,
-                mailing_list="picolisp@software-lab.de",
+                mailing_list="picolisp@example.com",
                 smtp_sender=mock_smtp_sender
             )
 
@@ -192,7 +193,7 @@ class TestMailing(unittest.TestCase):
         mailing.process_spool(
             spool_file=self.spool_file,
             mailings_file=self.mailings_file,
-            mailing_list="picolisp@software-lab.de",
+            mailing_list="picolisp@example.com",
             smtp_sender=mock_smtp_sender
         )
 
@@ -222,7 +223,7 @@ class TestMailing(unittest.TestCase):
         mailing.process_spool(
             spool_file=self.spool_file,
             mailings_file=self.mailings_file,
-            mailing_list="picolisp@software-lab.de",
+            mailing_list="picolisp@example.com",
             smtp_sender=mock_smtp_sender
         )
 
@@ -233,6 +234,41 @@ class TestMailing(unittest.TestCase):
         self.assertEqual(len(sent_calls), 1)
         self.assertEqual(sent_calls[0]['recipients'], ["alice@example.com"])
         self.assertIn("Good bye Alice <alice@example.com> :-(\r\nYou are now unsubscribed", sent_calls[0]['raw_message'])
+
+    @patch("smtplib.SMTP_SSL")
+    def test_send_smtp_message_port_465(self, mock_smtp_ssl):
+        mock_instance = MagicMock()
+        mock_smtp_ssl.return_value = mock_instance
+        mock_instance.sendmail.return_value = {}
+
+        res = mailing.send_smtp_message(
+            recipients=["user@example.com"],
+            raw_message="Test message",
+            smtp_port=465
+        )
+        self.assertTrue(res)
+        mock_smtp_ssl.assert_called_once_with("smtp.example.com", 465)
+        mock_instance.helo.assert_called_once_with("example.com")
+        mock_instance.login.assert_called_once_with("list@example.com", "XXXX")
+        mock_instance.sendmail.assert_called_once_with("list@example.com", ["user@example.com"], "Test message")
+
+    @patch("smtplib.SMTP")
+    def test_send_smtp_message_port_587(self, mock_smtp):
+        mock_instance = MagicMock()
+        mock_smtp.return_value = mock_instance
+        mock_instance.sendmail.return_value = {}
+
+        res = mailing.send_smtp_message(
+            recipients=["user@example.com"],
+            raw_message="Test message",
+            smtp_port=587
+        )
+        self.assertTrue(res)
+        mock_smtp.assert_called_once_with("smtp.example.com", 587)
+        mock_instance.starttls.assert_called_once()
+        mock_instance.helo.assert_called_once_with("example.com")
+        mock_instance.login.assert_called_once_with("list@example.com", "XXXX")
+        mock_instance.sendmail.assert_called_once_with("list@example.com", ["user@example.com"], "Test message")
 
 
 if __name__ == "__main__":

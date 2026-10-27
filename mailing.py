@@ -20,13 +20,13 @@ logging.basicConfig(
 logger = logging.getLogger("mailing")
 
 # Configuration
-MAILING_LIST = "picolisp@software-lab.de"
-SPOOL_FILE = "/var/mail/picolisp"
-MAILING_DOMAIN = "software-lab.de"
+MAILING_LIST = "list@example.com"
+SPOOL_FILE = "/var/mail/list"
+MAILING_DOMAIN = "example.com"
 MAILINGS_FILE = "Mailings"
-SMTP_HOST = "smtp.strato.de"
+SMTP_HOST = "smtp.example.com"
 SMTP_PORT = 465
-SMTP_USER = "picolisp@software-lab.de"
+SMTP_USER = "list@example.com"
 SMTP_PW = "XXXX"
 REPLY_TO_LIST = True
 
@@ -223,9 +223,13 @@ def format_outgoing_message(msg_data, mailing_list=MAILING_LIST, reply_to_list=R
 def send_smtp_message(recipients, raw_message, smtp_host=SMTP_HOST, smtp_port=SMTP_PORT,
                       smtp_user=SMTP_USER, smtp_pw=SMTP_PW, mailing_domain=MAILING_DOMAIN,
                       mailing_list=MAILING_LIST):
-    """Connects to SMTP host via SSL and sends the message to recipient addresses."""
+    """Connects to SMTP host via SSL (port 465) or STARTTLS (port 587) and sends the message to recipient addresses."""
     try:
-        smtp = smtplib.SMTP_SSL(smtp_host, smtp_port)
+        if smtp_port == 587:
+            smtp = smtplib.SMTP(smtp_host, smtp_port)
+            smtp.starttls()
+        else:
+            smtp = smtplib.SMTP_SSL(smtp_host, smtp_port)
     except Exception:
         logger.error("!! Can't connect to SMTP server")
         return False

@@ -10,7 +10,7 @@ This project is a Python port based on the original PicoLisp mailing list manage
 
 For security, this service is designed to run as a non-privileged system user rather than `root`.
 
-The service username is derived from the spool file path (`SPOOL_FILE = "/var/mail/picolisp"` in `mailing.py`), taking the filename component: `picolisp`.
+The service username is derived from the spool file path (`SPOOL_FILE = "/var/mail/list"` in `mailing.py`), taking the filename component: `list`.
 
 ## Systemd Installation Guide
 
@@ -18,10 +18,10 @@ Follow these steps to set up and run the mailing list service under systemd as a
 
 ### 1. Create System User and Group
 
-Create a dedicated system user and group named `picolisp`:
+Create a dedicated system user and group named `list`:
 
 ```bash
-sudo useradd --system --user-group --shell /usr/sbin/nologin picolisp
+sudo useradd --system --user-group --shell /usr/sbin/nologin list
 ```
 
 ### 2. Deploy Application Files
@@ -31,18 +31,18 @@ Copy the application directory to `/opt/mailing` (or your preferred location, ad
 ```bash
 sudo mkdir -p /opt/mailing
 sudo cp mailing.py Mailings /opt/mailing/
-sudo chown -R picolisp:picolisp /opt/mailing
+sudo chown -R list:list /opt/mailing
 sudo chmod 700 /opt/mailing
 ```
 
 ### 3. Set Up Spool File Permissions
 
-Ensure the mail spool directory and file exist and are accessible by the `picolisp` user:
+Ensure the mail spool directory and file exist and are accessible by the `list` user:
 
 ```bash
-sudo touch /var/mail/picolisp
-sudo chown picolisp:picolisp /var/mail/picolisp
-sudo chmod 600 /var/mail/picolisp
+sudo touch /var/mail/list
+sudo chown list:list /var/mail/list
+sudo chmod 600 /var/mail/list
 ```
 
 ### 4. Install and Enable systemd Service
