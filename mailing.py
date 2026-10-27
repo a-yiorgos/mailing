@@ -122,6 +122,8 @@ def format_outgoing_message(msg_data, mailing_list=MAILING_LIST):
         f"Reply-To: {mailing_list}\r\n",
         f"To: {mailing_list}\r\n",
         f"Subject: {subject}\r\n",
+        f"List-Subscribe: <mailto:{mailing_list}?subject=Subscribe>\r\n",
+        f"List-Unsubscribe: <mailto:{mailing_list}?subject=Unsubscribe>\r\n",
     ]
 
     optional_headers = [
@@ -153,15 +155,7 @@ def format_outgoing_message(msg_data, mailing_list=MAILING_LIST):
 
     body = "".join(msg_data['body_lines'])
 
-    footer = (
-        "\r\n-- \r\n"
-        "Fridays for Functions: 9:00-17:00 UTC\n"
-        "on Jitsi https://meeting.itship.ch/picolisp\n"
-        "\n"
-        f"UNSUBSCRIBE: mailto:{mailing_list}?subject=Unsubscribe\r\n"
-    )
-
-    return "".join(out_headers) + body_prefix + body + footer
+    return "".join(out_headers) + body_prefix + body
 
 
 def send_smtp_message(recipients, raw_message, smtp_host=SMTP_HOST, smtp_port=SMTP_PORT,
@@ -275,7 +269,6 @@ def main_loop():
             process_spool()
         except Exception as e:
             sys.stderr.write(f"!! Error: {e}\n")
-        # subprocess.run(["fetchmail", "-as"]) -- fetchmail step omitted per requirement
         time.sleep(240)
 
 

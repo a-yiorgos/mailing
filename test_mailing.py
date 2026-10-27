@@ -68,9 +68,12 @@ class TestMailing(unittest.TestCase):
         self.assertIn("Reply-To: picolisp@software-lab.de\r\n", formatted)
         self.assertIn("To: picolisp@software-lab.de\r\n", formatted)
         self.assertIn("Subject: Hello All\r\n", formatted)
+        self.assertIn("List-Subscribe: <mailto:picolisp@software-lab.de?subject=Subscribe>\r\n", formatted)
+        self.assertIn("List-Unsubscribe: <mailto:picolisp@software-lab.de?subject=Unsubscribe>\r\n", formatted)
         self.assertIn("Message-ID: <msg123@domain.com>\r\n", formatted)
         self.assertIn("Line 1\nLine 2\n", formatted)
-        self.assertIn("UNSUBSCRIBE: mailto:picolisp@software-lab.de?subject=Unsubscribe\r\n", formatted)
+        self.assertNotIn("UNSUBSCRIBE:", formatted)
+        self.assertNotIn("Fridays for Functions", formatted)
 
     def test_process_spool_subscribe_and_unsubscribe(self):
         # Initial mailings file with bob
