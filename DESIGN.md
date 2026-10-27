@@ -35,8 +35,8 @@ The mailing list manager was originally implemented in PicoLisp (`mailing.l`). I
   4. Spool file truncated (`open(spool_file, "w").close()`) following batch processing.
 
 ### 2.2 Outbound Delivery Model
-- **Transport:** Outbound messages are delivered over SMTP via SSL (`smtplib.SMTP_SSL`) on port `465` (e.g. Amazon SES or relay server `smtp.strato.de`).
-- **HELO Handshake:** HELO/EHLO domain configured via `MAILING_DOMAIN` (`software-lab.de`).
+- **Transport:** Outbound messages are delivered over SMTP via SSL (`smtplib.SMTP_SSL`) on port `465` (e.g. Amazon SES or relay server `smtp.example.com`).
+- **HELO Handshake:** HELO/EHLO domain configured via `MAILING_DOMAIN` (`example.com`).
 
 ---
 

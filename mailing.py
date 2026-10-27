@@ -20,13 +20,13 @@ logging.basicConfig(
 logger = logging.getLogger("mailing")
 
 # Configuration
-MAILING_LIST = "picolisp@software-lab.de"
+MAILING_LIST = "picolisp@example.com"
 SPOOL_FILE = "/var/mail/picolisp"
-MAILING_DOMAIN = "software-lab.de"
+MAILING_DOMAIN = "example.com"
 MAILINGS_FILE = "Mailings"
-SMTP_HOST = "smtp.strato.de"
+SMTP_HOST = "smtp.example.com"
 SMTP_PORT = 465
-SMTP_USER = "picolisp@software-lab.de"
+SMTP_USER = "picolisp@example.com"
 SMTP_PW = "XXXX"
 REPLY_TO_LIST = True
 
