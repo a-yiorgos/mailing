@@ -249,8 +249,8 @@ class TestMailing(unittest.TestCase):
         self.assertTrue(res)
         mock_smtp_ssl.assert_called_once_with("smtp.example.com", 465)
         mock_instance.helo.assert_called_once_with("example.com")
-        mock_instance.login.assert_called_once_with("picolisp@example.com", "XXXX")
-        mock_instance.sendmail.assert_called_once_with("picolisp@example.com", ["user@example.com"], "Test message")
+        mock_instance.login.assert_called_once_with("list@example.com", "XXXX")
+        mock_instance.sendmail.assert_called_once_with("list@example.com", ["user@example.com"], "Test message")
 
     @patch("smtplib.SMTP")
     def test_send_smtp_message_port_587(self, mock_smtp):
@@ -267,8 +267,8 @@ class TestMailing(unittest.TestCase):
         mock_smtp.assert_called_once_with("smtp.example.com", 587)
         mock_instance.starttls.assert_called_once()
         mock_instance.helo.assert_called_once_with("example.com")
-        mock_instance.login.assert_called_once_with("picolisp@example.com", "XXXX")
-        mock_instance.sendmail.assert_called_once_with("picolisp@example.com", ["user@example.com"], "Test message")
+        mock_instance.login.assert_called_once_with("list@example.com", "XXXX")
+        mock_instance.sendmail.assert_called_once_with("list@example.com", ["user@example.com"], "Test message")
 
 
 if __name__ == "__main__":

@@ -4,8 +4,8 @@ After=network.target
 
 [Service]
 Type=simple
-User=picolisp
-Group=picolisp
+User=list
+Group=list
 WorkingDirectory=/opt/mailing
 ExecStart=/usr/bin/python3 /opt/mailing/mailing.py
 Restart=always

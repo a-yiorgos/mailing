@@ -26,7 +26,7 @@ The mailing list manager was originally implemented in PicoLisp (`mailing.l`). I
 ```
 
 ### 2.1 Ingestion Model
-- **Reception:** Postfix receives incoming messages for the domain and appends them to the system mail spool at `/var/mail/picolisp`.
+- **Reception:** Postfix receives incoming messages for the domain and appends them to the system mail spool at `/var/mail/list`.
 - **Parsing:** The daemon uses standard library `mailbox.mbox` (via temporary spool file abstraction) to parse standard Unix mbox streams.
 - **Spool Lifecycle:**
   1. Spool presence and size checked.
@@ -44,11 +44,11 @@ The mailing list manager was originally implemented in PicoLisp (`mailing.l`). I
 
 ### 3.1 Non-Root Execution Strategy
 For principle of least privilege:
-- **System User:** Service runs under a non-privileged system user (`picolisp`) and group (`picolisp`).
-- **Username Derivation:** User name is derived directly from the spool file path (`SPOOL_FILE = "/var/mail/picolisp"` -> `picolisp`).
+- **System User:** Service runs under a non-privileged system user (`list`) and group (`list`).
+- **Username Derivation:** User name is derived directly from the spool file path (`SPOOL_FILE = "/var/mail/list"` -> `list`).
 - **File System Permissions:**
-  - Spool file (`/var/mail/picolisp`): `600` ownership `picolisp:picolisp`.
-  - Application directory (`/opt/mailing`): `700` ownership `picolisp:picolisp`.
+  - Spool file (`/var/mail/list`): `600` ownership `list:list`.
+  - Application directory (`/opt/mailing`): `700` ownership `list:list`.
 
 ### 3.2 Systemd Integration
 Managed via systemd unit file (`mailing.service`):
