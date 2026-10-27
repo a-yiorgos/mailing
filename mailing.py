@@ -3,7 +3,16 @@ import re
 import sys
 import time
 import smtplib
+import logging
 from datetime import datetime
+
+# Logging setup to stdout
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(message)s",
+    stream=sys.stdout
+)
+logger = logging.getLogger("mailing")
 
 # Configuration
 MAILING_LIST = "picolisp@software-lab.de"
@@ -14,6 +23,7 @@ SMTP_HOST = "smtp.strato.de"
 SMTP_PORT = 465
 SMTP_USER = "picolisp@software-lab.de"
 SMTP_PW = "XXXX"
+REPLY_TO_LIST = True
 
 
 def load_mailings(filename=MAILINGS_FILE):
@@ -98,7 +108,7 @@ def parse_mbox_stream(f):
     return True, messages
 
 
-def format_outgoing_message(msg_data, mailing_list=MAILING_LIST):
+def format_outgoing_message(msg_data, mailing_list=MAILING_LIST, reply_to_list=REPLY_TO_LIST):
     """
     Formats outgoing email headers and body matching mailing.l specifications.
     Returns full message string.
@@ -116,10 +126,12 @@ def format_outgoing_message(msg_data, mailing_list=MAILING_LIST):
     else:
         from_header = mailing_list
 
+    reply_to = mailing_list if reply_to_list else (src or from_env)
+
     out_headers = [
         f"From: {from_header}\r\n",
         f"Sender: {src or from_env}\r\n",
-        f"Reply-To: {mailing_list}\r\n",
+        f"Reply-To: {reply_to}\r\n",
         f"To: {mailing_list}\r\n",
         f"Subject: {subject}\r\n",
         f"List-Subscribe: <mailto:{mailing_list}?subject=Subscribe>\r\n",
@@ -165,14 +177,14 @@ def send_smtp_message(recipients, raw_message, smtp_host=SMTP_HOST, smtp_port=SM
     try:
         smtp = smtplib.SMTP_SSL(smtp_host, smtp_port)
     except Exception:
-        sys.stderr.write("!! Can't connect to SMTP server\n")
+        logger.error("!! Can't connect to SMTP server")
         return False
 
     try:
         smtp.helo(mailing_domain)
         smtp.login(smtp_user, smtp_pw)
     except Exception:
-        sys.stderr.write("!! Can't HELO\n")
+        logger.error("!! Can't HELO")
         try:
             smtp.quit()
         except Exception:
@@ -183,9 +195,9 @@ def send_smtp_message(recipients, raw_message, smtp_host=SMTP_HOST, smtp_port=SM
         refused = smtp.sendmail(mailing_list, recipients, raw_message)
         if refused:
             for recipient in refused:
-                sys.stderr.write(f"{recipient} can't mail\n")
+                logger.error(f"{recipient} can't mail")
     except Exception as e:
-        sys.stderr.write(f"!! Can't mail: {e}\n")
+        logger.error(f"!! Can't mail: {e}")
         try:
             smtp.quit()
         except Exception:
@@ -203,7 +215,8 @@ def send_smtp_message(recipients, raw_message, smtp_host=SMTP_HOST, smtp_port=SM
 def process_spool(spool_file=SPOOL_FILE, mailings_file=MAILINGS_FILE,
                   mailing_list=MAILING_LIST, smtp_host=SMTP_HOST,
                   smtp_port=SMTP_PORT, smtp_user=SMTP_USER, smtp_pw=SMTP_PW,
-                  mailing_domain=MAILING_DOMAIN, smtp_sender=send_smtp_message):
+                  mailing_domain=MAILING_DOMAIN, smtp_sender=send_smtp_message,
+                  reply_to_list=REPLY_TO_LIST):
     """Processes messages from spool file and clears spool when finished."""
     if not os.path.exists(spool_file) or os.path.getsize(spool_file) == 0:
         return
@@ -214,7 +227,7 @@ def process_spool(spool_file=SPOOL_FILE, mailings_file=MAILINGS_FILE,
         valid_mbox, messages = parse_mbox_stream(f)
 
     if not valid_mbox:
-        sys.stderr.write("!! Bad mbox file\n")
+        logger.error("!! Bad mbox file")
         return
 
     for msg_data in messages:
@@ -225,13 +238,13 @@ def process_spool(spool_file=SPOOL_FILE, mailings_file=MAILINGS_FILE,
         is_member = from_env in mailings
         is_subscribe = (sub_subj == "subscribe")
 
+        timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
         if not is_member and not is_subscribe:
-            if from_env != "mailer-daemon":
-                sys.stderr.write(f"{from_env} discarded\n")
+            logger.info(f"** {timestamp} {from_env} discarded")
             continue
 
-        timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        sys.stderr.write(f"** {from_env} {timestamp}\n")
+        logger.info(f"** {timestamp} {from_env} accepted")
 
         if is_subscribe:
             if from_env not in mailings:
@@ -249,7 +262,7 @@ def process_spool(spool_file=SPOOL_FILE, mailings_file=MAILINGS_FILE,
         else:
             recipients = list(mailings)
 
-        full_msg = format_outgoing_message(msg_data, mailing_list)
+        full_msg = format_outgoing_message(msg_data, mailing_list, reply_to_list=reply_to_list)
 
         smtp_sender(
             recipients=recipients,
@@ -272,7 +285,7 @@ def main_loop():
         try:
             process_spool()
         except Exception as e:
-            sys.stderr.write(f"!! Error: {e}\n")
+            logger.error(f"!! Error: {e}")
         time.sleep(240)
 
 
