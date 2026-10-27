@@ -11,6 +11,7 @@ This repository contains a modernized Python 3 mailing list daemon (`mailing.py`
 
 ### 2. Architecture & Runtime Rules
 - **Language:** Python 3 only.
+- **Reception:** Incoming email is always received and placed on file via Postfix.
 - **Delivery:** Outbound email routing uses Amazon SES via SSL (`smtplib.SMTP_SSL`) on port `465`.
 - **MIME & Body Integrity:** Do not mutate or append text strings to the email body. Use the `List-Unsubscribe` header instead of body footers.
 - **Privacy Policy:** Administrative commands (`subscribe` / `unsubscribe`) must never broadcast notifications to the mailing list; replies must be sent exclusively to the requesting user and the list administrator.
