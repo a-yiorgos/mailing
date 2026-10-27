@@ -1,0 +1,15 @@
+[Unit]
+Description=PicoLisp Mailing List Service
+After=network.target
+
+[Service]
+Type=simple
+User=picolisp
+Group=picolisp
+WorkingDirectory=/opt/mailing
+ExecStart=/usr/bin/python3 /opt/mailing/mailing.py
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target
