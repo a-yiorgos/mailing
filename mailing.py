@@ -229,11 +229,13 @@ def process_spool(spool_file=SPOOL_FILE, mailings_file=MAILINGS_FILE,
         is_member = from_env in mailings
         is_subscribe = (sub_subj == "subscribe")
 
+        timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
         if not is_member and not is_subscribe:
+            sys.stderr.write(f"** {timestamp} {from_env} discarded\n")
             continue
 
-        timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        sys.stderr.write(f"** {from_env} {timestamp}\n")
+        sys.stderr.write(f"** {timestamp} {from_env} accepted\n")
 
         if is_subscribe:
             if from_env not in mailings:

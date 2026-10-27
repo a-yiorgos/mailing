@@ -78,7 +78,7 @@ class TestMailing(unittest.TestCase):
         formatted_sender = mailing.format_outgoing_message(msg_data, mailing_list="picolisp@software-lab.de", reply_to_list=False)
         self.assertIn("Reply-To: Alice User <user@domain.com>\r\n", formatted_sender)
 
-    def test_process_spool_non_member_silently_discarded(self):
+    def test_process_spool_non_member_discard_logging(self):
         mailing.save_mailings(["bob@example.com"], self.mailings_file)
 
         non_member_mbox = (
@@ -111,7 +111,7 @@ class TestMailing(unittest.TestCase):
             mailing.sys.stderr = original_stderr
 
         self.assertEqual(len(sent_calls), 0)
-        self.assertEqual(stderr_capture.getvalue(), "")
+        self.assertIn("eve@example.com discarded", stderr_capture.getvalue())
         self.assertEqual(os.path.getsize(self.spool_file), 0)
 
     def test_process_spool_subscribe_and_unsubscribe(self):
