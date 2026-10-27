@@ -2,6 +2,7 @@ import os
 import tempfile
 import io
 import unittest
+from unittest.mock import MagicMock, patch
 import logging
 import mailing
 
@@ -233,6 +234,41 @@ class TestMailing(unittest.TestCase):
         self.assertEqual(len(sent_calls), 1)
         self.assertEqual(sent_calls[0]['recipients'], ["alice@example.com"])
         self.assertIn("Good bye Alice <alice@example.com> :-(\r\nYou are now unsubscribed", sent_calls[0]['raw_message'])
+
+    @patch("smtplib.SMTP_SSL")
+    def test_send_smtp_message_port_465(self, mock_smtp_ssl):
+        mock_instance = MagicMock()
+        mock_smtp_ssl.return_value = mock_instance
+        mock_instance.sendmail.return_value = {}
+
+        res = mailing.send_smtp_message(
+            recipients=["user@example.com"],
+            raw_message="Test message",
+            smtp_port=465
+        )
+        self.assertTrue(res)
+        mock_smtp_ssl.assert_called_once_with("smtp.example.com", 465)
+        mock_instance.helo.assert_called_once_with("example.com")
+        mock_instance.login.assert_called_once_with("picolisp@example.com", "XXXX")
+        mock_instance.sendmail.assert_called_once_with("picolisp@example.com", ["user@example.com"], "Test message")
+
+    @patch("smtplib.SMTP")
+    def test_send_smtp_message_port_587(self, mock_smtp):
+        mock_instance = MagicMock()
+        mock_smtp.return_value = mock_instance
+        mock_instance.sendmail.return_value = {}
+
+        res = mailing.send_smtp_message(
+            recipients=["user@example.com"],
+            raw_message="Test message",
+            smtp_port=587
+        )
+        self.assertTrue(res)
+        mock_smtp.assert_called_once_with("smtp.example.com", 587)
+        mock_instance.starttls.assert_called_once()
+        mock_instance.helo.assert_called_once_with("example.com")
+        mock_instance.login.assert_called_once_with("picolisp@example.com", "XXXX")
+        mock_instance.sendmail.assert_called_once_with("picolisp@example.com", ["user@example.com"], "Test message")
 
 
 if __name__ == "__main__":

@@ -18,11 +18,11 @@ The mailing list manager was originally implemented in PicoLisp (`mailing.l`). I
 ## 2. Infrastructure & Mail Pipeline
 
 ```
-┌──────────────┐     ┌──────────────────┐     ┌──────────────────┐     ┌────────────────┐
-│ Incoming     │     │ Postfix MTA      │     │ mailing.py       │     │ Outbound       │
-│ SMTP Email   │ ──> │ Mail Spool       │ ──> │ Processing Loop  │ ──> │ Amazon SES     │
-└──────────────┘     │ (/var/mail/...)  │     │ (Every 240s)     │     │ (SMTP SSL/465) │
-                     └──────────────────┘     └──────────────────┘     └────────────────┘
+┌──────────────┐     ┌──────────────────┐     ┌──────────────────┐     ┌───────────────────────┐
+│ Incoming     │     │ Postfix MTA      │     │ mailing.py       │     │ Outbound              │
+│ SMTP Email   │ ──> │ Mail Spool       │ ──> │ Processing Loop  │ ──> │ Amazon SES            │
+└──────────────┘     │ (/var/mail/...)  │     │ (Every 240s)     │     │ (SMTP 465 SSL/587 TLS)│
+                     └──────────────────┘     └──────────────────┘     └───────────────────────┘
 ```
 
 ### 2.1 Ingestion Model
@@ -35,7 +35,7 @@ The mailing list manager was originally implemented in PicoLisp (`mailing.l`). I
   4. Spool file truncated (`open(spool_file, "w").close()`) following batch processing.
 
 ### 2.2 Outbound Delivery Model
-- **Transport:** Outbound messages are delivered over SMTP via SSL (`smtplib.SMTP_SSL`) on port `465` (e.g. Amazon SES or relay server `smtp.example.com`).
+- **Transport:** Outbound messages are delivered to Amazon SES (or relay server `smtp.example.com`) over SMTP, supporting both port `465` (implicit SSL via `smtplib.SMTP_SSL`) and port `587` (STARTTLS via `smtplib.SMTP` and `starttls()`).
 - **HELO Handshake:** HELO/EHLO domain configured via `MAILING_DOMAIN` (`example.com`).
 
 ---
