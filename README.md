@@ -2,6 +2,10 @@
 
 This repository provides a Python 3 service to manage and process mailing list subscriptions and incoming emails from a spool file.
 
+## Attribution & Credits
+
+This project is a Python port based on the original PicoLisp mailing list manager (`mailing.l`) created by Alexander Burger / Software Lab ([PicoLisp Project](https://picolisp.com)).
+
 ## Non-Root Execution & Username Derivation
 
 For security, this service is designed to run as a non-privileged system user rather than `root`.
