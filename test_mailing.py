@@ -108,6 +108,7 @@ class TestMailing(unittest.TestCase):
         self.assertIn("alice@example.com", mailings)
         self.assertIn("bob@example.com", mailings)
         self.assertEqual(len(sent_calls), 1)
+        self.assertEqual(sent_calls[0]['recipients'], ["alice@example.com"])
         self.assertIn("Hello Alice <alice@example.com> :-)\r\nYou are now subscribed", sent_calls[0]['raw_message'])
 
         # Check spool file was emptied
@@ -137,6 +138,7 @@ class TestMailing(unittest.TestCase):
         self.assertNotIn("alice@example.com", mailings)
         self.assertIn("bob@example.com", mailings)
         self.assertEqual(len(sent_calls), 1)
+        self.assertEqual(sent_calls[0]['recipients'], ["alice@example.com"])
         self.assertIn("Good bye Alice <alice@example.com> :-(\r\nYou are now unsubscribed", sent_calls[0]['raw_message'])
 
 

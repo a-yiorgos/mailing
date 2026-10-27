@@ -244,7 +244,11 @@ def process_spool(spool_file=SPOOL_FILE, mailings_file=MAILINGS_FILE,
                 mailings.remove(from_env)
                 save_mailings(mailings, mailings_file)
 
-        recipients = list(mailings)
+        if is_subscribe or sub_subj == "unsubscribe":
+            recipients = [from_env]
+        else:
+            recipients = list(mailings)
+
         full_msg = format_outgoing_message(msg_data, mailing_list)
 
         smtp_sender(
