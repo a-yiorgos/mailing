@@ -4,7 +4,10 @@ import sys
 import time
 import smtplib
 import logging
+import mailbox
+import tempfile
 from datetime import datetime
+from email.message import Message
 
 # Logging setup to stdout
 logging.basicConfig(
@@ -43,15 +46,15 @@ def save_mailings(mailings, filename=MAILINGS_FILE):
 
 def parse_mbox_stream(f):
     """
-    Parses an mbox input stream.
+    Parses an mbox input stream using standard library mailbox module.
     Returns (valid_mbox, list_of_messages).
     If the first non-empty line does not start with 'From ', valid_mbox is False.
     """
-    lines = f.readlines()
-    if not lines:
+    content = f.read()
+    if not content:
         return True, []
 
-    # Skip empty lines at beginning if any
+    lines = content.splitlines(True)
     idx = 0
     while idx < len(lines) and not lines[idx].strip():
         idx += 1
@@ -62,55 +65,56 @@ def parse_mbox_stream(f):
     if not lines[idx].startswith("From "):
         return False, []
 
-    messages = []
-    current_msg = None
+    # Create temporary directory and file for cross-platform mailbox.mbox parsing
+    with tempfile.TemporaryDirectory() as temp_dir:
+        temp_file_path = os.path.join(temp_dir, "spool.mbox")
+        with open(temp_file_path, "w", encoding="utf-8", errors="replace") as temp_file:
+            temp_file.write(content)
 
-    while idx < len(lines):
-        line = lines[idx]
-        if line.startswith("From "):
-            if current_msg is not None:
-                messages.append(current_msg)
-            parts = line.rstrip("\r\n").split(" ")
-            from_env = parts[1].lower() if len(parts) > 1 else ""
-            current_msg = {
-                'from_env': from_env,
-                'headers': {},
-                'body_lines': []
-            }
-            idx += 1
+        mbox = mailbox.mbox(temp_file_path)
+        messages = []
+        try:
+            for mbox_msg in mbox:
+                from_line = mbox_msg.get_from() or ""
+                parts = from_line.split(" ")
+                from_env = parts[0].lower() if parts else ""
 
-            header_lines = []
-            while idx < len(lines):
-                hline = lines[idx].rstrip("\r\n")
-                if hline == "":
-                    idx += 1
-                    break
-                if (hline.startswith(" ") or hline.startswith("\t")) and header_lines:
-                    header_lines[-1] += " " + hline.strip()
+                headers = {k.lower(): str(v) for k, v in mbox_msg.items()}
+
+                if mbox_msg.is_multipart():
+                    payload_parts = []
+                    for part in mbox_msg.walk():
+                        if part.get_content_maintype() == "text":
+                            decoded = part.get_payload(decode=True)
+                            if isinstance(decoded, bytes):
+                                payload_parts.append(decoded.decode("utf-8", errors="replace"))
+                            elif isinstance(decoded, str):
+                                payload_parts.append(decoded)
+                    payload_str = "".join(payload_parts)
                 else:
-                    header_lines.append(hline)
-                idx += 1
+                    payload = mbox_msg.get_payload()
+                    if isinstance(payload, list):
+                        payload_str = "".join(str(m.get_payload()) if hasattr(m, 'get_payload') else str(m) for m in payload)
+                    else:
+                        payload_str = payload if isinstance(payload, str) else str(payload or "")
 
-            for hline in header_lines:
-                if ":" in hline:
-                    key, val = hline.split(":", 1)
-                    key = key.strip().lower()
-                    val = val.strip()
-                    current_msg['headers'][key] = val
-        else:
-            if current_msg is not None:
-                current_msg['body_lines'].append(line)
-            idx += 1
+                body_lines = payload_str.splitlines(True)
 
-    if current_msg is not None:
-        messages.append(current_msg)
+                messages.append({
+                    'from_env': from_env,
+                    'headers': headers,
+                    'body_lines': body_lines,
+                    'mbox_msg': mbox_msg
+                })
+        finally:
+            mbox.close()
 
     return True, messages
 
 
 def format_outgoing_message(msg_data, mailing_list=MAILING_LIST, reply_to_list=REPLY_TO_LIST):
     """
-    Formats outgoing email headers and body matching mailing.l specifications.
+    Formats outgoing email headers and body using standard email.message.Message.
     Returns full message string.
     """
     headers = msg_data['headers']
@@ -128,32 +132,29 @@ def format_outgoing_message(msg_data, mailing_list=MAILING_LIST, reply_to_list=R
 
     reply_to = mailing_list if reply_to_list else (src or from_env)
 
-    out_headers = [
-        f"From: {from_header}\r\n",
-        f"Sender: {src or from_env}\r\n",
-        f"Reply-To: {reply_to}\r\n",
-        f"To: {mailing_list}\r\n",
-        f"Subject: {subject}\r\n",
-        f"List-Subscribe: <mailto:{mailing_list}?subject=Subscribe>\r\n",
-        f"List-Unsubscribe: <mailto:{mailing_list}?subject=Unsubscribe>\r\n",
-    ]
+    msg = Message()
+    msg['From'] = from_header
+    msg['Sender'] = src or from_env
+    msg['Reply-To'] = reply_to
+    msg['To'] = mailing_list
+    msg['Subject'] = subject
+    msg['List-Subscribe'] = f"<mailto:{mailing_list}?subject=Subscribe>"
+    msg['List-Unsubscribe'] = f"<mailto:{mailing_list}?subject=Unsubscribe>"
 
     optional_headers = [
-        ('date', 'Date: '),
-        ('message-id', 'Message-ID: '),
-        ('in-reply-to', 'In-Reply-To: '),
-        ('mime-version', 'MIME-Version: '),
-        ('content-type', 'Content-Type: '),
-        ('content-transfer-encoding', 'Content-Transfer-Encoding: '),
-        ('content-disposition', 'Content-Disposition: '),
-        ('user-agent', 'User-Agent: '),
+        ('date', 'Date'),
+        ('message-id', 'Message-ID'),
+        ('in-reply-to', 'In-Reply-To'),
+        ('mime-version', 'MIME-Version'),
+        ('content-type', 'Content-Type'),
+        ('content-transfer-encoding', 'Content-Transfer-Encoding'),
+        ('content-disposition', 'Content-Disposition'),
+        ('user-agent', 'User-Agent'),
     ]
 
-    for key, prefix in optional_headers:
+    for key, name in optional_headers:
         if key in headers:
-            out_headers.append(f"{prefix}{headers[key]}\r\n")
-
-    out_headers.append("\r\n")
+            msg[name] = headers[key]
 
     # Body prefix based on subject
     sub_subj = subject.strip().lower()
@@ -166,8 +167,11 @@ def format_outgoing_message(msg_data, mailing_list=MAILING_LIST, reply_to_list=R
         body_prefix = f"Good bye {sender_name} :-(\r\nYou are now unsubscribed\r\n****\r\n\r\n"
 
     body = "".join(msg_data['body_lines'])
+    msg.set_payload(body_prefix + body)
 
-    return "".join(out_headers) + body_prefix + body
+    # Format headers with CRLF line endings
+    header_str = msg.as_string().split("\n\n", 1)[0].replace("\n", "\r\n") + "\r\n\r\n"
+    return header_str + body_prefix + body
 
 
 def send_smtp_message(recipients, raw_message, smtp_host=SMTP_HOST, smtp_port=SMTP_PORT,
