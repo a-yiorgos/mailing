@@ -64,7 +64,8 @@ class TestMailing(unittest.TestCase):
         }
         formatted_list = mailing.format_outgoing_message(msg_data, mailing_list="picolisp@software-lab.de", reply_to_list=True)
 
-        self.assertIn("From: Alice User <picolisp@software-lab.de>\r\n", formatted_list)
+        self.assertIn('From: "Alice User via picolisp@software-lab.de" <picolisp@software-lab.de>\r\n', formatted_list)
+        self.assertIn("X-Original-From: Alice User <user@domain.com>\r\n", formatted_list)
         self.assertIn("Sender: Alice User <user@domain.com>\r\n", formatted_list)
         self.assertIn("Reply-To: picolisp@software-lab.de\r\n", formatted_list)
         self.assertIn("To: picolisp@software-lab.de\r\n", formatted_list)
@@ -72,12 +73,69 @@ class TestMailing(unittest.TestCase):
         self.assertIn("List-Subscribe: <mailto:picolisp@software-lab.de?subject=Subscribe>\r\n", formatted_list)
         self.assertIn("List-Unsubscribe: <mailto:picolisp@software-lab.de?subject=Unsubscribe>\r\n", formatted_list)
         self.assertIn("Message-ID: <msg123@domain.com>\r\n", formatted_list)
-        self.assertIn("Line 1\nLine 2\n", formatted_list)
+        self.assertIn("Line 1\r\nLine 2\r\n", formatted_list)
         self.assertNotIn("UNSUBSCRIBE:", formatted_list)
         self.assertNotIn("Fridays for Functions", formatted_list)
 
         formatted_sender = mailing.format_outgoing_message(msg_data, mailing_list="picolisp@software-lab.de", reply_to_list=False)
         self.assertIn("Reply-To: Alice User <user@domain.com>\r\n", formatted_sender)
+
+    def test_gecos_and_lhs_from_header(self):
+        # Case 1: Sender with GECOS display name
+        msg_data_gecos = {
+            'from_env': "bob@example.com",
+            'headers': {'from': "Bob Smith <bob@example.com>", 'subject': "Hi"},
+            'body_lines': ["Test\n"]
+        }
+        res_gecos = mailing.format_outgoing_message(msg_data_gecos, mailing_list="picolisp@software-lab.de")
+        self.assertIn('From: "Bob Smith via picolisp@software-lab.de" <picolisp@software-lab.de>\r\n', res_gecos)
+        self.assertIn('X-Original-From: Bob Smith <bob@example.com>\r\n', res_gecos)
+
+        # Case 2: Sender without GECOS display name (using LHS of email)
+        msg_data_no_gecos = {
+            'from_env': "charlie@example.com",
+            'headers': {'from': "charlie@example.com", 'subject': "Hi"},
+            'body_lines': ["Test\n"]
+        }
+        res_no_gecos = mailing.format_outgoing_message(msg_data_no_gecos, mailing_list="picolisp@software-lab.de")
+        self.assertIn('From: "charlie via picolisp@software-lab.de" <picolisp@software-lab.de>\r\n', res_no_gecos)
+        self.assertIn('X-Original-From: charlie@example.com\r\n', res_no_gecos)
+
+    def test_multipart_mime_and_html_preservation(self):
+        multipart_mbox = (
+            "From alice@example.com Mon Oct 26 12:00:00 2026\n"
+            "From: Alice <alice@example.com>\n"
+            "To: picolisp@software-lab.de\n"
+            "Subject: HTML and Plaintext\n"
+            "MIME-Version: 1.0\n"
+            "Content-Type: multipart/alternative; boundary=\"boundary_test_123\"\n"
+            "\n"
+            "--boundary_test_123\n"
+            "Content-Type: text/plain; charset=utf-8\n"
+            "\n"
+            "Plain text content\n"
+            "--boundary_test_123\n"
+            "Content-Type: text/html; charset=utf-8\n"
+            "\n"
+            "<h1>HTML content</h1>\n"
+            "--boundary_test_123--\n"
+        )
+        stream = io.StringIO(multipart_mbox)
+        valid, msgs = mailing.parse_mbox_stream(stream)
+        self.assertTrue(valid)
+        self.assertEqual(len(msgs), 1)
+
+        formatted = mailing.format_outgoing_message(msgs[0], mailing_list="picolisp@software-lab.de")
+
+        self.assertIn('From: "Alice via picolisp@software-lab.de" <picolisp@software-lab.de>\r\n', formatted)
+        self.assertIn("X-Original-From: Alice <alice@example.com>\r\n", formatted)
+        self.assertIn('Content-Type: multipart/alternative; boundary="boundary_test_123"\r\n', formatted)
+        self.assertIn("--boundary_test_123\r\n", formatted)
+        self.assertIn("Content-Type: text/plain; charset=utf-8\r\n", formatted)
+        self.assertIn("Plain text content\r\n", formatted)
+        self.assertIn("Content-Type: text/html; charset=utf-8\r\n", formatted)
+        self.assertIn("<h1>HTML content</h1>\r\n", formatted)
+        self.assertIn("--boundary_test_123--\r\n", formatted)
 
     def test_process_spool_non_member_discard_logging(self):
         mailing.save_mailings(["bob@example.com"], self.mailings_file)
