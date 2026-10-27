@@ -14,6 +14,7 @@ SMTP_HOST = "smtp.strato.de"
 SMTP_PORT = 465
 SMTP_USER = "picolisp@software-lab.de"
 SMTP_PW = "XXXX"
+REPLY_TO_LIST = True
 
 
 def load_mailings(filename=MAILINGS_FILE):
@@ -98,7 +99,7 @@ def parse_mbox_stream(f):
     return True, messages
 
 
-def format_outgoing_message(msg_data, mailing_list=MAILING_LIST):
+def format_outgoing_message(msg_data, mailing_list=MAILING_LIST, reply_to_list=REPLY_TO_LIST):
     """
     Formats outgoing email headers and body matching mailing.l specifications.
     Returns full message string.
@@ -116,10 +117,12 @@ def format_outgoing_message(msg_data, mailing_list=MAILING_LIST):
     else:
         from_header = mailing_list
 
+    reply_to = mailing_list if reply_to_list else (src or from_env)
+
     out_headers = [
         f"From: {from_header}\r\n",
         f"Sender: {src or from_env}\r\n",
-        f"Reply-To: {mailing_list}\r\n",
+        f"Reply-To: {reply_to}\r\n",
         f"To: {mailing_list}\r\n",
         f"Subject: {subject}\r\n",
         f"List-Subscribe: <mailto:{mailing_list}?subject=Subscribe>\r\n",
@@ -203,7 +206,8 @@ def send_smtp_message(recipients, raw_message, smtp_host=SMTP_HOST, smtp_port=SM
 def process_spool(spool_file=SPOOL_FILE, mailings_file=MAILINGS_FILE,
                   mailing_list=MAILING_LIST, smtp_host=SMTP_HOST,
                   smtp_port=SMTP_PORT, smtp_user=SMTP_USER, smtp_pw=SMTP_PW,
-                  mailing_domain=MAILING_DOMAIN, smtp_sender=send_smtp_message):
+                  mailing_domain=MAILING_DOMAIN, smtp_sender=send_smtp_message,
+                  reply_to_list=REPLY_TO_LIST):
     """Processes messages from spool file and clears spool when finished."""
     if not os.path.exists(spool_file) or os.path.getsize(spool_file) == 0:
         return
@@ -226,8 +230,6 @@ def process_spool(spool_file=SPOOL_FILE, mailings_file=MAILINGS_FILE,
         is_subscribe = (sub_subj == "subscribe")
 
         if not is_member and not is_subscribe:
-            if from_env != "mailer-daemon":
-                sys.stderr.write(f"{from_env} discarded\n")
             continue
 
         timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
@@ -249,7 +251,7 @@ def process_spool(spool_file=SPOOL_FILE, mailings_file=MAILINGS_FILE,
         else:
             recipients = list(mailings)
 
-        full_msg = format_outgoing_message(msg_data, mailing_list)
+        full_msg = format_outgoing_message(msg_data, mailing_list, reply_to_list=reply_to_list)
 
         smtp_sender(
             recipients=recipients,

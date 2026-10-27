@@ -61,19 +61,58 @@ class TestMailing(unittest.TestCase):
             },
             'body_lines': ["Line 1\n", "Line 2\n"]
         }
-        formatted = mailing.format_outgoing_message(msg_data, mailing_list="picolisp@software-lab.de")
+        formatted_list = mailing.format_outgoing_message(msg_data, mailing_list="picolisp@software-lab.de", reply_to_list=True)
 
-        self.assertIn("From: Alice User <picolisp@software-lab.de>\r\n", formatted)
-        self.assertIn("Sender: Alice User <user@domain.com>\r\n", formatted)
-        self.assertIn("Reply-To: picolisp@software-lab.de\r\n", formatted)
-        self.assertIn("To: picolisp@software-lab.de\r\n", formatted)
-        self.assertIn("Subject: Hello All\r\n", formatted)
-        self.assertIn("List-Subscribe: <mailto:picolisp@software-lab.de?subject=Subscribe>\r\n", formatted)
-        self.assertIn("List-Unsubscribe: <mailto:picolisp@software-lab.de?subject=Unsubscribe>\r\n", formatted)
-        self.assertIn("Message-ID: <msg123@domain.com>\r\n", formatted)
-        self.assertIn("Line 1\nLine 2\n", formatted)
-        self.assertNotIn("UNSUBSCRIBE:", formatted)
-        self.assertNotIn("Fridays for Functions", formatted)
+        self.assertIn("From: Alice User <picolisp@software-lab.de>\r\n", formatted_list)
+        self.assertIn("Sender: Alice User <user@domain.com>\r\n", formatted_list)
+        self.assertIn("Reply-To: picolisp@software-lab.de\r\n", formatted_list)
+        self.assertIn("To: picolisp@software-lab.de\r\n", formatted_list)
+        self.assertIn("Subject: Hello All\r\n", formatted_list)
+        self.assertIn("List-Subscribe: <mailto:picolisp@software-lab.de?subject=Subscribe>\r\n", formatted_list)
+        self.assertIn("List-Unsubscribe: <mailto:picolisp@software-lab.de?subject=Unsubscribe>\r\n", formatted_list)
+        self.assertIn("Message-ID: <msg123@domain.com>\r\n", formatted_list)
+        self.assertIn("Line 1\nLine 2\n", formatted_list)
+        self.assertNotIn("UNSUBSCRIBE:", formatted_list)
+        self.assertNotIn("Fridays for Functions", formatted_list)
+
+        formatted_sender = mailing.format_outgoing_message(msg_data, mailing_list="picolisp@software-lab.de", reply_to_list=False)
+        self.assertIn("Reply-To: Alice User <user@domain.com>\r\n", formatted_sender)
+
+    def test_process_spool_non_member_silently_discarded(self):
+        mailing.save_mailings(["bob@example.com"], self.mailings_file)
+
+        non_member_mbox = (
+            "From eve@example.com Mon Oct 26 12:00:00 2026\n"
+            "From: Eve <eve@example.com>\n"
+            "Subject: Spam message\n"
+            "\n"
+            "Spam content.\n"
+        )
+        with open(self.spool_file, "w") as f:
+            f.write(non_member_mbox)
+
+        sent_calls = []
+
+        def mock_smtp_sender(**kwargs):
+            sent_calls.append(kwargs)
+            return True
+
+        stderr_capture = io.StringIO()
+        original_stderr = mailing.sys.stderr
+        try:
+            mailing.sys.stderr = stderr_capture
+            mailing.process_spool(
+                spool_file=self.spool_file,
+                mailings_file=self.mailings_file,
+                mailing_list="picolisp@software-lab.de",
+                smtp_sender=mock_smtp_sender
+            )
+        finally:
+            mailing.sys.stderr = original_stderr
+
+        self.assertEqual(len(sent_calls), 0)
+        self.assertEqual(stderr_capture.getvalue(), "")
+        self.assertEqual(os.path.getsize(self.spool_file), 0)
 
     def test_process_spool_subscribe_and_unsubscribe(self):
         # Initial mailings file with bob
