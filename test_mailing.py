@@ -68,9 +68,12 @@ class TestMailing(unittest.TestCase):
         self.assertIn("Reply-To: picolisp@software-lab.de\r\n", formatted)
         self.assertIn("To: picolisp@software-lab.de\r\n", formatted)
         self.assertIn("Subject: Hello All\r\n", formatted)
+        self.assertIn("List-Subscribe: <mailto:picolisp@software-lab.de?subject=Subscribe>\r\n", formatted)
+        self.assertIn("List-Unsubscribe: <mailto:picolisp@software-lab.de?subject=Unsubscribe>\r\n", formatted)
         self.assertIn("Message-ID: <msg123@domain.com>\r\n", formatted)
         self.assertIn("Line 1\nLine 2\n", formatted)
-        self.assertIn("UNSUBSCRIBE: mailto:picolisp@software-lab.de?subject=Unsubscribe\r\n", formatted)
+        self.assertNotIn("UNSUBSCRIBE:", formatted)
+        self.assertNotIn("Fridays for Functions", formatted)
 
     def test_process_spool_subscribe_and_unsubscribe(self):
         # Initial mailings file with bob
@@ -105,6 +108,7 @@ class TestMailing(unittest.TestCase):
         self.assertIn("alice@example.com", mailings)
         self.assertIn("bob@example.com", mailings)
         self.assertEqual(len(sent_calls), 1)
+        self.assertEqual(sent_calls[0]['recipients'], ["alice@example.com"])
         self.assertIn("Hello Alice <alice@example.com> :-)\r\nYou are now subscribed", sent_calls[0]['raw_message'])
 
         # Check spool file was emptied
@@ -134,6 +138,7 @@ class TestMailing(unittest.TestCase):
         self.assertNotIn("alice@example.com", mailings)
         self.assertIn("bob@example.com", mailings)
         self.assertEqual(len(sent_calls), 1)
+        self.assertEqual(sent_calls[0]['recipients'], ["alice@example.com"])
         self.assertIn("Good bye Alice <alice@example.com> :-(\r\nYou are now unsubscribed", sent_calls[0]['raw_message'])
 
 
