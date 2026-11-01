@@ -294,10 +294,11 @@ def process_spool_file(spool_path, mailings):
                 
                 # Check if this is a subscribe request
                 if subject == 'subscribe':
+                    timestamp = time.strftime('%Y-%m-%d %H:%M:%S')
                     if from_addr not in mailings:
                         mailings.append(from_addr)
                         save_mailings(mailings)
-                        log_message(f"{from_addr} subscribed")
+                        log_message(f"{timestamp} {from_addr} SUBSCRIBE")
                     
                     # Send confirmation to user
                     send_email_via_smtp(
@@ -320,10 +321,11 @@ def process_spool_file(spool_path, mailings):
                 
                 # Check if this is an unsubscribe request
                 if subject == 'unsubscribe':
+                    timestamp = time.strftime('%Y-%m-%d %H:%M:%S')
                     if from_addr in mailings:
                         mailings.remove(from_addr)
                         save_mailings(mailings)
-                        log_message(f"{from_addr} unsubscribed")
+                        log_message(f"{timestamp} {from_addr} UNSUBSCRIBE")
                     
                     # Send confirmation to user
                     send_email_via_smtp(
@@ -347,12 +349,13 @@ def process_spool_file(spool_path, mailings):
                 # Check if sender is in mailing list
                 if from_addr not in mailings:
                     # Discard email from non-subscriber
-                    with open('/dev/null', 'w') as devnull:
-                        devnull.write(f"\nFrom {from_addr} discarded\n")
+                    timestamp = time.strftime('%Y-%m-%d %H:%M:%S')
+                    log_message(f"{timestamp} {from_addr} DISCARD")
                     continue
                 
                 # Process valid email
-                log_message(f"{from_addr} {time.strftime('%Y-%m-%d %H:%M:%S')}")
+                timestamp = time.strftime('%Y-%m-%d %H:%M:%S')
+                log_message(f"{timestamp} {from_addr} ACCEPT")
                 
                 # Read body
                 body = read_email_body(f)
