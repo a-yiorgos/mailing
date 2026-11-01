@@ -190,16 +190,39 @@ def send_email_via_smtp(to_addrs, from_addr, headers, body, is_subscribe=False, 
         
         # From header
         src = headers.get('Src', from_addr)
-        if src:
-            # Try to extract name and email
-            if '<' in src and '>' in src:
-                name_part = src.split('<')[0].strip()
-                email_part = src.split('<')[1].split('>')[0].strip()
-                message += f"From: {name_part} <{MAILING_LIST}>\r\n".encode()
-            else:
-                message += f"From: {MAILING_LIST}\r\n".encode()
+        
+        # Extract list name from MAILING_LIST (local part before @)
+        list_name = MAILING_LIST.split('@')[0]
+        
+        # Parse original From to get name (GECOS) and email
+        original_from = src or from_addr
+        geos = None
+        original_email = None
+        if '<' in original_from and '>' in original_from:
+            geos = original_from.split('<')[0].strip()
+            original_email = original_from.split('<')[1].split('>')[0].strip()
         else:
-            message += f"From: {MAILING_LIST}\r\n".encode()
+            # No GECOS, use local part of email
+            if '@' in original_from:
+                original_email = original_from
+                geos = original_from.split('@')[0]
+            else:
+                original_email = original_from
+                geos = original_from
+        
+        # Build new GECOS with " via {list_name}"
+        if geos and geos.strip():
+            new_gecos = f"{geos} via {list_name}"
+        else:
+            # Fallback: use local part of original email
+            local_part = original_email.split('@')[0] if '@' in original_email else original_email
+            new_gecos = f"{local_part} via {list_name}"
+        
+        # From: uses list address with modified GECOS
+        message += f"From: {new_gecos} <{MAILING_LIST}>\r\n".encode()
+        
+        # Add X-Original-From header
+        message += f"X-Original-From: {original_from}\r\n".encode()
         
         message += f"Sender: {src or from_addr}\r\n".encode()
         reply_to = MAILING_LIST if REPLY_TO_LIST else (src or from_addr)
