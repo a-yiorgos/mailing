@@ -1,0 +1,7 @@
+# Example Mailings file - contains list of subscribed email addresses
+# Each email address on its own line
+# This file is automatically read and written by mailing.py
+
+# user1@example.com
+# user2@example.com
+# user3@example.com
