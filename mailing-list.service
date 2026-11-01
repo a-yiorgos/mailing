@@ -1,0 +1,79 @@
+# Mailing List Manager Systemd Service File
+# ===========================================
+#
+# This file configures the mailing list manager to run as a systemd service.
+#
+# INSTALLATION INSTRUCTIONS:
+# -------------------------
+#
+# 1. Copy this file to /etc/systemd/system/:
+#    sudo cp mailing-list.service /etc/systemd/system/
+#
+# 2. Edit the configuration in mailing.py:
+#    - Set MAILING_LIST to your mailing list address
+#    - Set LIST_MANAGER to the list manager's email
+#    - Set SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PW for your SMTP server
+#    - Set SPOOL_FILE to your mail spool file path (e.g., /var/mail/maillist)
+#    - Set REPLY_TO_LIST to True or False based on your preference
+#
+# 3. Create the Mailings file (if it doesn't exist):
+#    touch /path/to/Mailings
+#    chown <user>:<group> /path/to/Mailings
+#
+# 4. Create a dedicated user for the service (recommended):
+#    sudo useradd -r -s /usr/sbin/nologin mailing-list
+#
+# 5. Set appropriate permissions for the spool file:
+#    sudo chown mailing-list:mailing-list /var/mail/maillist
+#    sudo chmod 660 /var/mail/maillist
+#
+# 6. Install Python dependencies (if any):
+#    This script uses only standard library modules, so no pip install needed.
+#
+# 7. Enable and start the service:
+#    sudo systemctl daemon-reload
+#    sudo systemctl enable mailing-list.service
+#    sudo systemctl start mailing-list.service
+#
+# 8. Check status and logs:
+#    sudo systemctl status mailing-list.service
+#    journalctl -u mailing-list.service -f
+#
+# 9. To stop or restart:
+#    sudo systemctl stop mailing-list.service
+#    sudo systemctl restart mailing-list.service
+#
+# NOTES:
+# ------
+# - The service runs as the 'mailing-list' user for security
+# - Logs are captured by journalctl with format: YYYY-MM-DD HH:MM:SS <email> <DECISION>
+# - Decisions include: ACCEPT, DISCARD, SUBSCRIBE, UNSUBSCRIBE
+# - The service checks the spool file every 4 minutes (240 seconds)
+# - Edit the ExecStart path if Python is in a different location
+# - Edit WorkingDirectory to match your installation path
+
+[Unit]
+Description=Mailing List Manager
+After=network.target
+
+[Service]
+Type=simple
+User=mailing-list
+Group=mailing-list
+WorkingDirectory=/home/mistral/src/mailing
+ExecStart=/usr/bin/python3 /home/mistral/src/mailing/mailing.py
+Restart=on-failure
+RestartSec=30
+
+# Security settings
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+ProtectHome=read-only
+ReadWritePaths=/home/mistral/src/mailing /var/mail
+
+# Environment
+Environment=PYTHONUNBUFFERED=1
+
+[Install]
+WantedBy=multi-user.target
