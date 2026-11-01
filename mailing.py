@@ -19,6 +19,7 @@ SMTP_HOST = "mail.example.com"
 SMTP_PORT = 465
 SMTP_USER = "list@example.com"
 SMTP_PW = "password"
+REPLY_TO_LIST = True
 
 # Load mailings (subscribers) from Mailings file
 MAILINGS_FILE = "Mailings"
@@ -201,7 +202,8 @@ def send_email_via_smtp(to_addrs, from_addr, headers, body, is_subscribe=False, 
             message += f"From: {MAILING_LIST}\r\n".encode()
         
         message += f"Sender: {src or from_addr}\r\n".encode()
-        message += f"Reply-To: {MAILING_LIST}\r\n".encode()
+        reply_to = MAILING_LIST if REPLY_TO_LIST else (src or from_addr)
+        message += f"Reply-To: {reply_to}\r\n".encode()
         message += f"To: {to_email or MAILING_LIST}\r\n".encode()
         
         # Subject
