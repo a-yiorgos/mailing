@@ -3,12 +3,27 @@
 # This file contains the list of subscribed email addresses.
 # One email address per line.
 # Lines starting with # are treated as comments and ignored.
+# 
+# Format for new subscriptions:
+#   # YYYY-MM-DD
+#   email@example.com
+#
+# Format for unsubscriptions:
+#   # YYYY-MM-DD
+#   # email@example.com
+#   # YYYY-MM-DD unsubscribed
+#
 # This file is automatically read and written by mailing.py.
 
-# Example subscribers:
+# 2024-01-15
 user1@example.com
-user2@example.com
-user3@example.com
 
-# This is a comment and will be ignored
-# user4@example.com
+# 2024-02-20
+user2@example.com
+
+# 2024-03-01
+# user3@example.com
+# 2024-03-15 unsubscribed
+
+# 2024-03-20
+user3@example.com

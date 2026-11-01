@@ -25,7 +25,11 @@ REPLY_TO_LIST = True
 MAILINGS_FILE = "Mailings"
 
 def load_mailings():
-    """Load subscriber list from Mailings file"""
+    """Load subscriber list from Mailings file
+    
+    Returns a list of active email addresses (non-commented lines).
+    Lines starting with # are treated as comments and ignored.
+    """
     mailings = []
     if os.path.exists(MAILINGS_FILE):
         with open(MAILINGS_FILE, 'r') as f:
@@ -36,11 +40,41 @@ def load_mailings():
                     mailings.append(line)
     return mailings
 
-def save_mailings(mailings):
-    """Save subscriber list to Mailings file"""
+def add_subscriber(email):
+    """Add a new subscriber to the Mailings file
+    
+    Appends a comment line with today's date followed by the email address.
+    """
+    timestamp = time.strftime('%Y-%m-%d')
+    with open(MAILINGS_FILE, 'a') as f:
+        f.write(f"# {timestamp}\n")
+        f.write(f"{email}\n")
+
+def remove_subscriber(email):
+    """Remove a subscriber from the Mailings file
+    
+    Comments out the email line and adds an unsubscribe date comment.
+    """
+    timestamp = time.strftime('%Y-%m-%d')
+    # Read all lines
+    with open(MAILINGS_FILE, 'r') as f:
+        lines = f.readlines()
+    
+    # Find and modify the email line
+    new_lines = []
+    for line in lines:
+        stripped = line.strip()
+        if stripped == email:
+            # Comment out the email line
+            new_lines.append(f"# {stripped}\n")
+            # Add unsubscribe date comment
+            new_lines.append(f"# {timestamp} unsubscribed\n")
+        else:
+            new_lines.append(line)
+    
+    # Write back
     with open(MAILINGS_FILE, 'w') as f:
-        for email in mailings:
-            f.write(email + '\n')
+        f.writelines(new_lines)
 
 def log_message(msg, prefix='** '):
     """Print a message with prefix"""
@@ -361,8 +395,8 @@ def process_spool_file(spool_path, mailings):
                 if subject == 'subscribe':
                     timestamp = time.strftime('%Y-%m-%d %H:%M:%S')
                     if from_addr not in mailings:
+                        add_subscriber(from_addr)
                         mailings.append(from_addr)
-                        save_mailings(mailings)
                         log_message(f"{timestamp} {from_addr} SUBSCRIBE")
                     
                     # Send confirmation to user
@@ -388,8 +422,8 @@ def process_spool_file(spool_path, mailings):
                 if subject == 'unsubscribe':
                     timestamp = time.strftime('%Y-%m-%d %H:%M:%S')
                     if from_addr in mailings:
+                        remove_subscriber(from_addr)
                         mailings.remove(from_addr)
-                        save_mailings(mailings)
                         log_message(f"{timestamp} {from_addr} UNSUBSCRIBE")
                     
                     # Send confirmation to user
