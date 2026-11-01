@@ -1,7 +1,14 @@
-# Example Mailings file - contains list of subscribed email addresses
-# Each email address on its own line
-# This file is automatically read and written by mailing.py
+# Mailing List Subscribers
+# =========================
+# This file contains the list of subscribed email addresses.
+# One email address per line.
+# Lines starting with # are treated as comments and ignored.
+# This file is automatically read and written by mailing.py.
 
-# user1@example.com
-# user2@example.com
-# user3@example.com
+# Example subscribers:
+user1@example.com
+user2@example.com
+user3@example.com
+
+# This is a comment and will be ignored
+# user4@example.com

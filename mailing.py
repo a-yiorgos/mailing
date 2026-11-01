@@ -31,7 +31,8 @@ def load_mailings():
         with open(MAILINGS_FILE, 'r') as f:
             for line in f:
                 line = line.strip()
-                if line:
+                # Skip empty lines and comments (lines starting with #)
+                if line and not line.startswith('#'):
                     mailings.append(line)
     return mailings
 
