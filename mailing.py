@@ -12,6 +12,7 @@ from pathlib import Path
 
 # Configuration
 MAILING_LIST = "list@example.com"
+LIST_MANAGER = "manager@example.com"
 SPOOL_FILE = "/var/mail/maillist"
 MAILING_DOMAIN = "example.com"
 SMTP_HOST = "mail.example.com"
@@ -126,7 +127,7 @@ def read_email_body(file_obj):
         body.append(line)
     return ''.join(body)
 
-def send_email_via_smtp(to_addrs, from_addr, headers, body, is_subscribe=False, is_unsubscribe=False):
+def send_email_via_smtp(to_addrs, from_addr, headers, body, is_subscribe=False, is_unsubscribe=False, to_email=None):
     """Send email via SMTP with SSL"""
     
     # Connect to SMTP server
@@ -201,7 +202,7 @@ def send_email_via_smtp(to_addrs, from_addr, headers, body, is_subscribe=False, 
         
         message += f"Sender: {src or from_addr}\r\n".encode()
         message += f"Reply-To: {MAILING_LIST}\r\n".encode()
-        message += f"To: {MAILING_LIST}\r\n".encode()
+        message += f"To: {to_email or MAILING_LIST}\r\n".encode()
         
         # Subject
         subject = headers.get('Subject', '')
@@ -214,6 +215,14 @@ def send_email_via_smtp(to_addrs, from_addr, headers, body, is_subscribe=False, 
             value = headers.get(header_name)
             if value:
                 message += f"{header_name}: {value}\r\n".encode()
+        
+        # List headers
+        message += f"List-Id: <{MAILING_LIST}>\r\n".encode()
+        message += f"List-Subscribe: <mailto:{MAILING_LIST}?subject=subscribe>\r\n".encode()
+        message += f"List-Unsubscribe: <mailto:{MAILING_LIST}?subject=unsubscribe>\r\n".encode()
+        message += f"List-Help: <mailto:{MAILING_LIST}?subject=help>\r\n".encode()
+        message += f"List-Post: <mailto:{MAILING_LIST}>\r\n".encode()
+        message += f"List-Owner: <mailto:{MAILING_LIST}>\r\n".encode()
         
         message += b"\r\n"
         
@@ -229,10 +238,6 @@ def send_email_via_smtp(to_addrs, from_addr, headers, body, is_subscribe=False, 
         else:
             # Original message body
             message += body.encode('utf-8', errors='replace')
-        
-        # Footer
-        message += b"\n-- \r\n"
-        message += f"UNSUBSCRIBE: mailto:{MAILING_LIST}?subject=Unsubscribe\r\n".encode()
         
         # End of DATA
         message += b".\r\n"
@@ -292,13 +297,22 @@ def process_spool_file(spool_path, mailings):
                         save_mailings(mailings)
                         log_message(f"{from_addr} subscribed")
                     
-                    # Send confirmation
+                    # Send confirmation to user
                     send_email_via_smtp(
                         [from_addr], 
                         from_addr, 
                         headers, 
                         "", 
-                        is_subscribe=True
+                        is_subscribe=True,
+                        to_email=from_addr
+                    )
+                    # Notify list manager
+                    send_email_via_smtp(
+                        [LIST_MANAGER],
+                        from_addr,
+                        {'Subject': f'Subscription notification for {from_addr}'},
+                        f"{from_addr} has subscribed to the mailing list.",
+                        to_email=LIST_MANAGER
                     )
                     continue
                 
@@ -309,13 +323,22 @@ def process_spool_file(spool_path, mailings):
                         save_mailings(mailings)
                         log_message(f"{from_addr} unsubscribed")
                     
-                    # Send confirmation
+                    # Send confirmation to user
                     send_email_via_smtp(
                         [from_addr], 
                         from_addr, 
                         headers, 
                         "", 
-                        is_unsubscribe=True
+                        is_unsubscribe=True,
+                        to_email=from_addr
+                    )
+                    # Notify list manager
+                    send_email_via_smtp(
+                        [LIST_MANAGER],
+                        from_addr,
+                        {'Subject': f'Unsubscription notification for {from_addr}'},
+                        f"{from_addr} has unsubscribed from the mailing list.",
+                        to_email=LIST_MANAGER
                     )
                     continue
                 
