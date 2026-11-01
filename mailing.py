@@ -16,7 +16,7 @@ LIST_MANAGER = "manager@example.com"
 SPOOL_FILE = "/var/mail/maillist"
 MAILING_DOMAIN = "example.com"
 SMTP_HOST = "mail.example.com"
-SMTP_PORT = 465
+SMTP_PORT = 465  # Port 465 for SSL, or 587 for STARTTLS (Amazon SES)
 SMTP_USER = "list@example.com"
 SMTP_PW = "password"
 REPLY_TO_LIST = True
@@ -129,31 +129,72 @@ def read_email_body(file_obj):
     return ''.join(body)
 
 def send_email_via_smtp(to_addrs, from_addr, headers, body, is_subscribe=False, is_unsubscribe=False, to_email=None):
-    """Send email via SMTP with SSL"""
+    """Send email via SMTP with SSL or STARTTLS"""
     
     # Connect to SMTP server
     try:
         sock = socket.create_connection((SMTP_HOST, SMTP_PORT))
-        context = ssl.create_default_context()
-        ssl_sock = context.wrap_socket(sock, server_hostname=SMTP_HOST)
+        sock_file = sock.makefile('rb')
+        
+        # Read welcome message
+        welcome = sock_file.readline().decode('utf-8', errors='ignore')
+        if not welcome.startswith('220 '):
+            log_error(f"Unexpected SMTP welcome: {welcome}")
+            sock.close()
+            return False
+        
+        # For port 587, use STARTTLS; for port 465, use implicit SSL
+        if SMTP_PORT == 587:
+            # Send EHLO
+            sock.sendall(f"EHLO {MAILING_DOMAIN}\r\n".encode())
+            response = sock_file.readline().decode('utf-8', errors='ignore')
+            if not response.startswith('250 '):
+                log_error(f"EHLO failed: {response}")
+                sock.close()
+                return False
+            
+            # Issue STARTTLS command
+            sock.sendall(b"STARTTLS\r\n")
+            response = sock_file.readline().decode('utf-8', errors='ignore')
+            if not response.startswith('220 '):
+                log_error(f"STARTTLS failed: {response}")
+                sock.close()
+                return False
+            
+            # Wrap socket with SSL
+            context = ssl.create_default_context()
+            ssl_sock = context.wrap_socket(sock, server_hostname=SMTP_HOST)
+            sock_file = ssl_sock.makefile('rb')
+            
+            # Re-send EHLO after STARTTLS
+            ssl_sock.sendall(f"EHLO {MAILING_DOMAIN}\r\n".encode())
+            response = sock_file.readline().decode('utf-8', errors='ignore')
+            if not response.startswith('250 '):
+                log_error(f"EHLO after STARTTLS failed: {response}")
+                ssl_sock.close()
+                return False
+        else:
+            # Port 465: implicit SSL
+            context = ssl.create_default_context()
+            ssl_sock = context.wrap_socket(sock, server_hostname=SMTP_HOST)
+            sock_file = ssl_sock.makefile('rb')
+            
+            # Send HELO for implicit SSL
+            ssl_sock.sendall(f"HELO {MAILING_DOMAIN}\r\n".encode())
+            response = sock_file.readline().decode('utf-8', errors='ignore')
+            if not response.startswith('250 '):
+                log_error(f"HELO failed: {response}")
+                ssl_sock.close()
+                return False
     except Exception as e:
         log_error(f"Can't connect to SMTP server: {e}")
+        try:
+            sock.close()
+        except:
+            pass
         return False
     
     try:
-        # Read welcome message
-        welcome = ssl_sock.makefile('rb').readline().decode('utf-8', errors='ignore')
-        if not welcome.startswith('220 '):
-            log_error(f"Unexpected SMTP welcome: {welcome}")
-            return False
-        
-        # Send HELO
-        ssl_sock.sendall(f"HELO {MAILING_DOMAIN}\r\n".encode())
-        response = ssl_sock.makefile('rb').readline().decode('utf-8', errors='ignore')
-        if not response.startswith('250 '):
-            log_error(f"HELO failed: {response}")
-            return False
-        
         # Authentication
         auth_string = f"\x00{SMTP_USER}\x00{SMTP_PW}"
         auth_base64 = base64.b64encode(auth_string.encode()).decode()
